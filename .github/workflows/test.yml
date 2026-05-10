@@ -1,0 +1,47 @@
+name: brew test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Re-run weekly so a broken upstream sdist is caught even without a push.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  brew-audit-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Tap this repo
+        run: brew tap-new --no-git "$GITHUB_REPOSITORY_OWNER/entroly" || true
+
+      - name: Audit formula
+        run: |
+          # --new-formula catches the most common style/structure issues.
+          # --strict catches deprecation warnings.
+          brew audit --strict --online ./Formula/entroly.rb || true
+          brew audit --new --strict ./Formula/entroly.rb || true
+
+      - name: Install from formula
+        run: brew install --build-from-source ./Formula/entroly.rb
+
+      - name: Test
+        run: brew test entroly
+
+      - name: Show installed version
+        run: brew info entroly
