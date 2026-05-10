@@ -20,28 +20,40 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-14, ubuntu-latest]
+
+    env:
+      # `brew audit` and `brew install` only work on tap-resolved names, not
+      # loose Formula paths. Tap this checkout under the canonical tap name
+      # so all subsequent commands operate on `entroly`.
+      TAP_NAME: ${{ github.repository_owner }}/entroly
+      FORMULA_NAME: ${{ github.repository_owner }}/entroly/entroly
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Homebrew
-        id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Tap this repo
-        run: brew tap-new --no-git "$GITHUB_REPOSITORY_OWNER/entroly" || true
+      - name: Tap this checkout
+        # Brings the formula into Homebrew's tap world so it can be addressed
+        # by name rather than path. The trailing arg is the local source —
+        # equivalent to a real `brew tap juyterman1000/entroly` once published.
+        run: brew tap "$TAP_NAME" "$GITHUB_WORKSPACE"
 
-      - name: Audit formula
-        run: |
-          # --new-formula catches the most common style/structure issues.
-          # --strict catches deprecation warnings.
-          brew audit --strict --online ./Formula/entroly.rb || true
-          brew audit --new --strict ./Formula/entroly.rb || true
+      - name: Audit formula (strict)
+        # Some warnings are routine for new formulae; keep the run informational
+        # but always green so a single style nit can't block users from
+        # installing.
+        run: brew audit --strict --online "$FORMULA_NAME" || true
 
-      - name: Install from formula
-        run: brew install --build-from-source ./Formula/entroly.rb
+      - name: Audit formula (new-formula rules)
+        run: brew audit --new --strict "$FORMULA_NAME" || true
 
-      - name: Test
-        run: brew test entroly
+      - name: Install from formula (build from source)
+        run: brew install --build-from-source "$FORMULA_NAME"
+
+      - name: Test installed binary
+        run: brew test "$FORMULA_NAME"
 
       - name: Show installed version
-        run: brew info entroly
+        run: brew info "$FORMULA_NAME"
