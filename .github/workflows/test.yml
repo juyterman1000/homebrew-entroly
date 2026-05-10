@@ -22,10 +22,6 @@ jobs:
         os: [macos-14, ubuntu-latest]
 
     env:
-      # `brew audit` and `brew install` only work on tap-resolved names, not
-      # loose Formula paths. Tap this checkout under the canonical tap name
-      # so all subsequent commands operate on `entroly`.
-      TAP_NAME: ${{ github.repository_owner }}/entroly
       FORMULA_NAME: ${{ github.repository_owner }}/entroly/entroly
 
     steps:
@@ -34,22 +30,29 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Tap this checkout
-        # Brings the formula into Homebrew's tap world so it can be addressed
-        # by name rather than path. The trailing arg is the local source —
-        # equivalent to a real `brew tap juyterman1000/entroly` once published.
-        run: brew tap "$TAP_NAME" "$GITHUB_WORKSPACE"
+      - name: Symlink checkout into Homebrew's tap directory
+        # `brew tap <name> <local-path>` is rejected once the canonical
+        # tap (juyterman1000/homebrew-entroly) is already published —
+        # Homebrew detects "remote mismatch." Bypass by symlinking the
+        # workspace directly into $(brew --repository)/Library/Taps so
+        # Homebrew sees this commit as the tap content.
+        run: |
+          set -eux
+          TAPS_DIR="$(brew --repository)/Library/Taps/${{ github.repository_owner }}"
+          mkdir -p "$TAPS_DIR"
+          rm -rf "$TAPS_DIR/homebrew-entroly"
+          ln -sfn "$GITHUB_WORKSPACE" "$TAPS_DIR/homebrew-entroly"
+          brew tap | grep -i entroly
 
       - name: Audit formula (strict)
-        # Some warnings are routine for new formulae; keep the run informational
-        # but always green so a single style nit can't block users from
-        # installing.
+        # Audit is informational — a single style nit shouldn't block
+        # users from installing.
         run: brew audit --strict --online "$FORMULA_NAME" || true
 
       - name: Audit formula (new-formula rules)
         run: brew audit --new --strict "$FORMULA_NAME" || true
 
-      - name: Install from formula (build from source)
+      - name: Install from source
         run: brew install --build-from-source "$FORMULA_NAME"
 
       - name: Test installed binary
