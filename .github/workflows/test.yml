@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest]
 
     env:
       FORMULA_NAME: ${{ github.repository_owner }}/entroly/entroly
@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Symlink checkout into Homebrew's tap directory
         # `brew tap <name> <local-path>` is rejected once the canonical
