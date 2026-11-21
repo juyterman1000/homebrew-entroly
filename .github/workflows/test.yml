@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest]
 
     env:
       FORMULA_NAME: ${{ github.repository_owner }}/entroly/entroly
